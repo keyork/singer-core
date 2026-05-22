@@ -1,0 +1,2 @@
+# singer-core
+Just Sing
