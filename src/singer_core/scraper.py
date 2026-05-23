@@ -198,7 +198,15 @@ class ScraperEngine:
                 break
 
             page_num += 1
-            await asyncio.sleep(random.uniform(6.0, 8.0))
+            if pages_fetched % 20 == 0:
+                if self._console is not None:
+                    self._console.print(
+                        f"[dim yellow]⏸  Cooldown after {pages_fetched} pages, "
+                        f"waiting 63s...[/]"
+                    )
+                await asyncio.sleep(63)
+            else:
+                await asyncio.sleep(random.uniform(1.0, 1.5))
 
         return {"pages_fetched": pages_fetched, "total_records": total_records}
 
