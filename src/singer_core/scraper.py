@@ -84,6 +84,7 @@ class ScraperEngine:
         )
         write_header = not Path(output_path).exists()
         pages_fetched = 0
+        total_records = 0
 
         progress, task = self._create_progress()
         try:
@@ -99,13 +100,15 @@ class ScraperEngine:
                 await page.goto(self._config.base_url, wait_until="commit")
 
                 try:
-                    pages_fetched = await self._scrape_loop(
+                    result = await self._scrape_loop(
                         start_page=start_page,
                         output_path=output_path,
                         write_header=write_header,
                         progress=progress,
                         task=task,
                     )
+                    pages_fetched = result["pages_fetched"]
+                    total_records = result["total_records"]
                 except KeyboardInterrupt:
                     self._logger.info(
                         "Interrupted, progress saved up to page %d",
@@ -118,7 +121,11 @@ class ScraperEngine:
                 progress.stop()
 
         if pages_fetched > 0:
-            return {"pages_fetched": pages_fetched, "output_path": output_path}
+            return {
+                "pages_fetched": pages_fetched,
+                "total_records": total_records,
+                "output_path": output_path,
+            }
         return None
 
     # ── 采集循环 ──
@@ -130,10 +137,11 @@ class ScraperEngine:
         write_header: bool,
         progress: Progress | None,
         task: TaskID | None,
-    ) -> int:
-        """逐页采集、写 CSV、更新进度条。返回总页数。"""
+    ) -> dict[str, int]:
+        """逐页采集、写 CSV、更新进度条。返回统计信息。"""
         page_num = start_page
         pages_fetched = 0
+        total_records = 0
         all_fields: list[str] = []
 
         while True:
@@ -147,6 +155,8 @@ class ScraperEngine:
             if self._total_pages == 0:
                 self._logger.error("No pagination info received, stopping")
                 break
+
+            total_records += len(records)
 
             if records:
                 if not all_fields:
@@ -167,7 +177,14 @@ class ScraperEngine:
                 if pages_fetched == 1:
                     total_to_fetch = self._total_pages - start_page + 1
                     progress.update(task, total=total_to_fetch)
-                progress.update(task, advance=1)
+                progress.update(
+                    task,
+                    advance=1,
+                    description=(
+                        f"[cyan]Scraping... "
+                        f"{total_records:,} records"
+                    ),
+                )
             else:
                 self._logger.info(
                     "Page %d/%d saved, %d records",
@@ -181,9 +198,9 @@ class ScraperEngine:
                 break
 
             page_num += 1
-            await asyncio.sleep(random.uniform(2.5, 3.5))
+            await asyncio.sleep(random.uniform(3.0, 4.0))
 
-        return pages_fetched
+        return {"pages_fetched": pages_fetched, "total_records": total_records}
 
     # ── 页面拦截 / 响应 ──
 
@@ -342,11 +359,13 @@ class ScraperEngine:
         if self._console is None:
             return None, None
         progress = Progress(
-            SpinnerColumn(),
+            SpinnerColumn("dots"),
             TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
+            BarColumn(bar_width=40),
             MofNCompleteColumn(),
+            TextColumn("•", style="dim"),
             TimeElapsedColumn(),
+            TextColumn("<", style="dim"),
             TimeRemainingColumn(),
             console=self._console,
         )
