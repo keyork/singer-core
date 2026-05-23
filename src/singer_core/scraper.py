@@ -198,7 +198,7 @@ class ScraperEngine:
                 break
 
             page_num += 1
-            await asyncio.sleep(random.uniform(4.5, 6.0))
+            await asyncio.sleep(random.uniform(6.0, 8.0))
 
         return {"pages_fetched": pages_fetched, "total_records": total_records}
 
