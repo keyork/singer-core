@@ -62,7 +62,7 @@ def _print_config_table(console: Console, config: AppConfig) -> None:
     table.add_row("Output", f"📂 {c.output_dir}/{c.output_filename}")
     table.add_row("Page Size", f"📄 {c.page_size} records/page")
     table.add_row("Progress", f"💾 {c.progress_file}")
-    table.add_row("Delay", "⏳ 3.0~4.0s between pages")
+    table.add_row("Delay", "⏳ 1s/page, 63s cooldown every 20 pages")
 
     console.print(Panel(table, expand=False, border_style="dim"))
     console.print()
